@@ -14,17 +14,17 @@ This library provides version information utilities for the SMS Checker project.
 ## Requirements Met
 
 ### F1: Version-Aware Library
-✅ Version-aware Maven library  
-✅ VersionUtil class with getVersion() method  
-✅ Version parsed from metadata/resource file  
-✅ No dependency on version control system  
-✅ Used by app service for library reuse demonstration
+- Version-aware Maven library  
+- VersionUtil class with getVersion() method  
+- Version parsed from metadata/resource file  
+- No dependency on version control system  
+- Used by app service for library reuse demonstration
 
 ### F2: Library Release
-✅ GitHub Actions workflow for automatic packaging  
-✅ Automatic versioning from Git tags  
-✅ Release to GitHub Packages (Maven registry)  
-✅ Automated release notes generation  
+- GitHub Actions workflow for automatic packaging  
+- Automatic versioning from Git tags  
+- Release to GitHub Packages (Maven registry)  
+- Automated release notes generation  
 
 ## Installation
 
@@ -62,6 +62,8 @@ Configure authentication in `~/.m2/settings.xml`:
   </server>
 </servers>
 ```
+
+Note: YOUR_GITHUB_TOKEN must have `read:packages` scope.
 
 ### From Local Repository
 
