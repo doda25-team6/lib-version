@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Extract version from tag
+        id: vars
+        run: |
+          TAG_REF="${GITHUB_REF_NAME}"
+          VERSION="${TAG_REF#v}"
+          echo "tag_version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure pom.xml version matches tag
+        run: |
+          POM_VERSION=$(mvn -q -Dexpression=project.version -DforceStdout help:evaluate)
+          echo "POM_VERSION=${POM_VERSION}"
+          echo "TAG_VERSION=${{ steps.vars.outputs.tag_version }}"
+          if [ "${POM_VERSION}" != "${{ steps.vars.outputs.tag_version }}" ]; then
+            echo "pom.xml version (${POM_VERSION}) does not match tag version (${{ steps.vars.outputs.tag_version }})" >&2
+            exit 1
+          fi
+
+      - name: Update version.properties
+        run: |
+          chmod +x scripts/update-version-properties.sh
+          ./scripts/update-version-properties.sh
+
+      - name: Build release artifact
+        run: mvn -B clean package
+
+      - name: Create GitHub Release and upload artifact via API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.vars.outputs.tag_version }}"
+          TAG_NAME="v${VERSION}"
+
+          ASSET_PATH="target/lib-version-${VERSION}.jar"
+          if [ ! -f "$ASSET_PATH" ]; then
+            echo "Expected artifact $ASSET_PATH not found" >&2
+            exit 1
+          fi
+
+          API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases"
+          RELEASE_DATA=$(jq -n --arg tag "$TAG_NAME" --arg name "Release $VERSION" \
+            '{ tag_name: $tag, name: $name, draft: false, prerelease: false }')
+
+          RESPONSE=$(curl -sS -X POST -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$RELEASE_DATA" "$API_URL")
+
+          UPLOAD_URL=$(echo "$RESPONSE" | jq -r '.upload_url' | sed 's/{?name,label}//')
+          if [ -z "$UPLOAD_URL" ] || [ "$UPLOAD_URL" = "null" ]; then
+            echo "Failed to get upload_url from release creation response" >&2
+            echo "$RESPONSE" >&2
+            exit 1
+          fi
+
+          ASSET_NAME="lib-version-${VERSION}.jar"
+          curl -sS -X POST -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/java-archive" \
+            --data-binary @"${ASSET_PATH}" \
+            "${UPLOAD_URL}?name=${ASSET_NAME}"
+
+      - name: Bump pom.xml to next snapshot version and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.vars.outputs.tag_version }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          NEXT_PATCH=$((PATCH + 1))
+          NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-SNAPSHOT"
+
+          echo "Releasing $VERSION, bumping to $NEXT_VERSION"
+
+          mvn -B versions:set -DnewVersion="$NEXT_VERSION" -DgenerateBackupPoms=false
+
+          chmod +x scripts/update-version-properties.sh
+          ./scripts/update-version-properties.sh
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add pom.xml src/main/resources/version.properties
+          git commit -m "chore: bump version to $NEXT_VERSION after release $VERSION" || echo "No changes to commit"
+
+          # Push back to the default branch (assumed to be main)
+          DEFAULT_BRANCH="main"
+          git push origin "HEAD:${DEFAULT_BRANCH}"
