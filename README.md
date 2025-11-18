@@ -46,3 +46,4 @@ mvn install  # Install to local repository for use by app
 ## Integration
 
 This library is used by the SMS Checker app service to demonstrate library reuse and provide system information for monitoring purposes.
+# Test pre-release
