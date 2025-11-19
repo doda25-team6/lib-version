@@ -4,8 +4,6 @@
 
 This library provides version information utilities for the SMS Checker project. It demonstrates how to create and reuse a library with version awareness capabilities.
 
-**🧪 F11 Test**: Testing pre-release workflow with timestamp-based versioning - Nov 19, 2025
-
 ## Features
 
 - **VersionUtil class** that can be asked for its version
