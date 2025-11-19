@@ -1,0 +1,51 @@
+name: Pre-release
+
+on:
+  push:
+    branches:
+      - "feature/*"
+      - "bugfix/*"
+      - "develop"
+
+jobs:
+  pre_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Compute pre-release version
+        id: vars
+        run: |
+          BASE_VERSION=$(mvn -q -Dexpression=project.version -DforceStdout help:evaluate)
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          BRANCH_NAME="${BRANCH_NAME##*/}"
+          BRANCH_SLUG=$(echo "$BRANCH_NAME" | tr '/' '-' | tr -c '0-9A-Za-z-.' '-')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          PRE_VERSION="${BASE_VERSION}-${BRANCH_SLUG}.${SHORT_SHA}-SNAPSHOT"
+          echo "pre_version=${PRE_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set pom version to pre-release (local only)
+        run: |
+          mvn -B versions:set -DnewVersion="${{ steps.vars.outputs.pre_version }}" -DgenerateBackupPoms=false
+
+      - name: Update version.properties
+        run: |
+          chmod +x scripts/update-version-properties.sh
+          ./scripts/update-version-properties.sh
+
+      - name: Build pre-release artifact
+        run: mvn -B clean package
+
+      - name: Upload pre-release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-version-${{ steps.vars.outputs.pre_version }}
+          path: target/lib-version-*.jar
