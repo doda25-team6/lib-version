@@ -12,7 +12,7 @@ import java.util.Properties;
 public class VersionUtil {
     
     private static final String VERSION_PROPERTIES = "version.properties";
-    private static final String DEFAULT_VERSION = "1.0.0-UNKNOWN";
+    private static final String DEFAULT_VERSION = "1.0.1-UNKNOWN";
     
     private static VersionUtil instance;
     private final String version;
