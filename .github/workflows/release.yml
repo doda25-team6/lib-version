@@ -42,7 +42,6 @@ jobs:
 
       - name: Publish to GitHub Packages
         run: |
-          echo "Hello world"
           echo "$GITHUB_TOKEN" > GITHUB_TOKEN
           mvn deploy
 
