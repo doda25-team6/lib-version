@@ -28,6 +28,7 @@ jobs:
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Checkout the branch
+        if: steps.branch.outputs.branch == 'main'
         run: |
           git checkout ${{ steps.branch.outputs.branch }}
           git pull origin ${{ steps.branch.outputs.branch }}
