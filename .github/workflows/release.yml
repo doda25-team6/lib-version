@@ -117,6 +117,7 @@ jobs:
           echo "artifact.description=SMS Checker Version Library" >> src/main/resources/version.properties
 
       - name: Commit and push next SNAPSHOT version
+        if: steps.branch.outputs.branch == 'main'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
