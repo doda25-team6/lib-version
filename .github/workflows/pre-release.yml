@@ -10,6 +10,8 @@ on:
 jobs:
   pre_release:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
 
     steps:
       - name: Checkout
@@ -25,11 +27,12 @@ jobs:
         id: vars
         run: |
           BASE_VERSION=$(mvn -q -Dexpression=project.version -DforceStdout help:evaluate)
+          BASE_VERSION=${BASE_VERSION%-SNAPSHOT}  # Remove -SNAPSHOT suffix
           BRANCH_NAME="${GITHUB_REF_NAME}"
           BRANCH_NAME="${BRANCH_NAME##*/}"
           BRANCH_SLUG=$(echo "$BRANCH_NAME" | tr '/' '-' | tr -c '0-9A-Za-z-.' '-')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          PRE_VERSION="${BASE_VERSION}-${BRANCH_SLUG}.${SHORT_SHA}-SNAPSHOT"
+          TIMESTAMP=$(date +"%y%m%d-%H%M%S")
+          PRE_VERSION="lib-version-${BASE_VERSION}-${BRANCH_SLUG}-${TIMESTAMP}"
           echo "pre_version=${PRE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set pom version to pre-release (local only)
@@ -41,11 +44,7 @@ jobs:
           chmod +x scripts/update-version-properties.sh
           ./scripts/update-version-properties.sh
 
-      - name: Build pre-release artifact
-        run: mvn -B clean package
-
-      - name: Upload pre-release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lib-version-${{ steps.vars.outputs.pre_version }}
-          path: target/lib-version-*.jar
+      - name: Build and deploy pre-release artifact
+        run: mvn -B clean deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

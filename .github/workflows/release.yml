@@ -9,7 +9,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -78,3 +78,33 @@ jobs:
             ```
           draft: false
           prerelease: false
+
+      - name: Compute next SNAPSHOT version
+        id: next_version
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          next_patch=$((patch + 1))
+          NEXT_VERSION="${major}.${minor}.${next_patch}-SNAPSHOT"
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version to next SNAPSHOT in pom.xml
+        run: |
+          mvn versions:set -DnewVersion=${{ steps.next_version.outputs.next_version }}
+          mvn versions:commit
+
+      - name: Update version.properties to next SNAPSHOT
+        run: |
+          echo "version=${{ steps.next_version.outputs.next_version }}" > src/main/resources/version.properties
+          echo "build.time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> src/main/resources/version.properties
+          echo "artifact.name=lib-version" >> src/main/resources/version.properties
+          echo "artifact.description=SMS Checker Version Library" >> src/main/resources/version.properties
+
+      - name: Commit and push next SNAPSHOT version
+        if: steps.branch.outputs.branch == 'main'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add pom.xml src/main/resources/version.properties
+          git commit -m "Bump version to ${{ steps.next_version.outputs.next_version }} after release"
+          git push origin HEAD:${{ steps.branch.outputs.branch }}
