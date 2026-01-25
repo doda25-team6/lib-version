@@ -113,4 +113,4 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add pom.xml src/main/resources/version.properties
           git commit -m "Bump version to ${{ steps.next_version.outputs.next_version }} after release"
-          git push origin HEAD:${{ steps.branch.outputs.branch }}
+          git push origin HEAD:main
