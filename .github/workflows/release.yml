@@ -11,10 +11,17 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -100,11 +107,37 @@ jobs:
           echo "artifact.name=lib-version" >> src/main/resources/version.properties
           echo "artifact.description=SMS Checker Version Library" >> src/main/resources/version.properties
 
-      - name: Commit and push next SNAPSHOT version
-        if: steps.branch.outputs.branch == 'main'
+      # - name: Commit and push next SNAPSHOT version (to branch)
+      #   env:
+      #     NEXT: ${{ steps.next_version.outputs.next_version }}
+      #   run: |
+      #     set -e
+      #     BRANCH="bump-snapshot-${NEXT}"
+      #     git checkout -b "$BRANCH"
+
+      #     git config --global user.name 'github-actions[bot]'
+      #     git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      #     git add pom.xml src/main/resources/version.properties
+      #     git commit -m "Bump version to ${NEXT} after release"
+      #     git push origin "$BRANCH"
+
+      - name: Commit and push next SNAPSHOT version (to branch)
+        env:
+          NEXT: ${{ steps.next_version.outputs.next_version }}
         run: |
+          set -e
+          BRANCH="bump-snapshot-${NEXT}"
+          git checkout -b "$BRANCH"
+
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
           git add pom.xml src/main/resources/version.properties
-          git commit -m "Bump version to ${{ steps.next_version.outputs.next_version }} after release"
-          git push origin HEAD:${{ steps.branch.outputs.branch }}
+          git commit -m "Bump version to ${NEXT} after release"
+          git push origin "$BRANCH"
+
+          echo "Pushed branch: $BRANCH"
+          echo "Open a PR to main: https://github.com/${{ github.repository }}/compare/main...$BRANCH?expand=1"
+
+
